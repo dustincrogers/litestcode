@@ -6,7 +6,7 @@
     "params" : { 
 		"InstanceType" : {"dev" : "t2.micro"},
 		"InstanceSecurityGroup" : "sg-00c28de3f5687a790",
-		"ServiceELB" : "",
+		"ServiceELB" : "Web-Server-LB",
 		"InstanceAvailabilityZones" : ["us-east-2a", "us-east-2b", "us-east-2c"],
 		"ASGDesiredCapacity" :"1",
 		"ASGHealthCheckGracePeriod" :"600",
