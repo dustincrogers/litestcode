@@ -4,7 +4,7 @@
   "Description" : "Creates an autoscaling group.",
   "Mappings" : {
     "params" : { 
-		"InstanceType" : "t2.micro",
+		"InstanceType" : {"dev" : "t2.micro"},
 		"InstanceSecurityGroup" : "sg-00c28de3f5687a790",
 		"ServiceELB" : "",
 		"InstanceAvailabilityZones" : ["us-east-2a", "us-east-2b", "us-east-2c"],
@@ -62,7 +62,7 @@
         "KeyName": { "Ref": "KeyName" },
         "ImageId": { "Ref" : "InstanceAMI" },
         "IamInstanceProfile": { "Ref" : "InstanceIAMRole" },
-        "InstanceType": { "Fn::FindInMap" : [ "params", {"Ref": "InstanceType"} ] },
+        "InstanceType": { "Fn::FindInMap" : [ "params", {"Ref": "InstanceType"}, "dev" ] },
         "SecurityGroups": [ { "Ref": "InstanceSecurityGroup" } ],
         "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
              "#!/bin/bash -xe\n",
