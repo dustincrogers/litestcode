@@ -1,22 +1,22 @@
 {
-  "AWSTemplateFormatVersion" : "2019-09-25",
+  "AWSTemplateFormatVersion" : "2010-09-09",
 
   "Description" : "Creates an autoscaling group.",
   "Mappings" : {
     "params" : { 
 		"InstanceType" : {"dev" : "t2.micro"},
 		"InstanceSecurityGroup" : {"firewall" : "sg-00c28de3f5687a790"},
-		"ServiceELB" : "Web-Server-LB",
-		"InstanceAvailabilityZones" : ["us-east-2a", "us-east-2b", "us-east-2c"],
-		"ASGDesiredCapacity" :"1",
-		"ASGHealthCheckGracePeriod" :"600",
-		"ASGHealthCheckType": "EC2",
-		"ASGMinSize" : "1",
-		"ASGMaxSize" : "1",
-		"InstanceSubnets" : ["subnet-fc133794", "subnet-674edc1d", "subnet-33a5607f"],
-		"InstanceAMI" : "ami-0cf31d971a3ca20d6",
-		"InstanceIAMRole" : "arn:aws:iam::321741005818:role/webserver_role",
-		"Role" : "arn:aws:iam::321741005818:role/webserver_role"
+		"ServiceELB" : {"lb" : "Web-Server-LB"},
+		"InstanceAvailabilityZones" : {"zones" : ["us-east-2a", "us-east-2b", "us-east-2c"]},
+		"ASGDesiredCapacity" : {"cap" : "1"},
+		"ASGHealthCheckGracePeriod" : {"hcgraceperiod" : "600"},
+		"ASGHealthCheckType": {"hctype" : "EC2"},
+		"ASGMinSize" : {"minsize" : "1"},
+		"ASGMaxSize" : {"maxsize" : "1"},
+		"InstanceSubnets" : {"subnets" : ["subnet-fc133794", "subnet-674edc1d", "subnet-33a5607f"]},
+		"InstanceAMI" : {"ami" : "ami-0cf31d971a3ca20d6"},
+		"InstanceIAMRole" : {"ima" : "arn:aws:iam::321741005818:role/webserver_role"},
+		"Role" : {"rl" : "arn:aws:iam::321741005818:role/webserver_role"}
     } 
   },
   "Parameters" : {  
@@ -64,8 +64,18 @@
         "IamInstanceProfile": { "Ref" : "InstanceIAMRole" },
         "InstanceType": { "Fn::FindInMap" : [ "params", {"Ref": "InstanceType"}, "dev" ] },
         "SecurityGroups": { "Fn::FindInMap" : [ "params", {"Ref": "InstanceSecurityGroup"}, "firewall" ] },
-		#"SecurityGroups": [ { "Ref": "InstanceSecurityGroup" } ],
-        "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
+		"ServiceELB" : { "Fn::FindInMap" : [ "params", {"Ref": "ServiceELB"}, "lb" ] },
+		"InstanceAvailabilityZones" : { "Fn::FindInMap" : [ "params", {"Ref": "InstanceAvailabilityZones"}, "zones" ] },
+		"ASGDesiredCapacity" :{ "Fn::FindInMap" : [ "params", {"Ref": "ASGDesiredCapacity"}, "cap" ] },
+		"ASGHealthCheckGracePeriod" :{ "Fn::FindInMap" : [ "params", {"Ref": "ASGHealthCheckGracePeriod"}, "hcgraceperiod" ] },
+		"ASGHealthCheckType": { "Fn::FindInMap" : [ "params", {"Ref": "ASGHealthCheckType"}, "hctype" ] },
+		"ASGMinSize" : { "Fn::FindInMap" : [ "params", {"Ref": "ASGMinSize"}, "minsize" ] },
+		"ASGMaxSize" : { "Fn::FindInMap" : [ "params", {"Ref": "ASGMaxSize"}, "maxsize" ] },
+		"InstanceSubnets" : { "Fn::FindInMap" : [ "params", {"Ref": "InstanceSubnets"}, "subnets" ] },
+		"InstanceAMI" : { "Fn::FindInMap" : [ "params", {"Ref": "InstanceAMI"}, "ami" ] },
+		"InstanceIAMRole" : { "Fn::FindInMap" : [ "params", {"Ref": "InstanceIAMRole"}, "iam" ] },
+		"Role" : { "Fn::FindInMap" : [ "params", {"Ref": "Role"}, "rl" ] },		
+		"UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
              "#!/bin/bash -xe\n",
              "ROLE=", { "Ref" : "Role" }, "\n",
              "yum update -y \n",
