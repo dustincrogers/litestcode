@@ -1,11 +1,11 @@
 {
-  "AWSTemplateFormatVersion" : "2010-09-09",
+  "AWSTemplateFormatVersion" : "2019-09-25",
 
   "Description" : "Creates an autoscaling group.",
   "Mappings" : {
     "params" : { 
 		"InstanceType" : {"dev" : "t2.micro"},
-		"InstanceSecurityGroup" : "sg-00c28de3f5687a790",
+		"InstanceSecurityGroup" : {"firewall" : "sg-00c28de3f5687a790"},
 		"ServiceELB" : "Web-Server-LB",
 		"InstanceAvailabilityZones" : ["us-east-2a", "us-east-2b", "us-east-2c"],
 		"ASGDesiredCapacity" :"1",
@@ -63,7 +63,8 @@
         "ImageId": { "Ref" : "InstanceAMI" },
         "IamInstanceProfile": { "Ref" : "InstanceIAMRole" },
         "InstanceType": { "Fn::FindInMap" : [ "params", {"Ref": "InstanceType"}, "dev" ] },
-        "SecurityGroups": [ { "Ref": "InstanceSecurityGroup" } ],
+        "SecurityGroups": { "Fn::FindInMap" : [ "params", {"Ref": "InstanceSecurityGroup"}, "firewall" ] },
+		#"SecurityGroups": [ { "Ref": "InstanceSecurityGroup" } ],
         "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
              "#!/bin/bash -xe\n",
              "ROLE=", { "Ref" : "Role" }, "\n",
