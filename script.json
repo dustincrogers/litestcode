@@ -1,22 +1,21 @@
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
-
-  "Description" : "Creates an autoscaling group.",
+  "Description" : "Creates an webserver autoscaling group",
   "Mappings" : {
     "params" : { 
 		"InstanceType" : {"dev" : "t2.micro"},
-		"InstanceSecurityGroup" : {"firewall" : "sg-00c28de3f5687a790"},
-		"ServiceELB" : {"lb" : "Web-Server-LB"},
-		"InstanceAvailabilityZones" : {"zones" : ["us-east-2a", "us-east-2b", "us-east-2c"]},
-		"ASGDesiredCapacity" : {"cap" : "1"},
-		"ASGHealthCheckGracePeriod" : {"hcgraceperiod" : "600"},
-		"ASGHealthCheckType": {"hctype" : "EC2"},
-		"ASGMinSize" : {"minsize" : "1"},
-		"ASGMaxSize" : {"maxsize" : "1"},
-		"InstanceSubnets" : {"subnets" : ["subnet-fc133794", "subnet-674edc1d", "subnet-33a5607f"]},
-		"InstanceAMI" : {"ami" : "ami-0cf31d971a3ca20d6"},
-		"InstanceIAMRole" : {"ima" : "arn:aws:iam::321741005818:role/webserver_role"},
-		"Role" : {"rl" : "arn:aws:iam::321741005818:role/webserver_role"}
+		"InstanceSecurityGroup" : {"dev" : "sg-00c28de3f5687a790"},
+		"ServiceELB" : {"dev" : "Web-Server-LB"},
+		"InstanceAvailabilityZones" : {"dev" : ["us-east-2a", "us-east-2b", "us-east-2c"]},
+		"ASGDesiredCapacity" : {"dev" : "1"},
+		"ASGHealthCheckGracePeriod" : {"dev" : "600"},
+		"ASGHealthCheckType": {"dev" : "EC2"},
+		"ASGMinSize" : {"dev" : "1"},
+		"ASGMaxSize" : {"dev" : "1"},
+		"InstanceSubnets" : {"dev" : ["subnet-fc133794", "subnet-674edc1d", "subnet-33a5607f"]},
+		"InstanceAMI" : {"dev" : "ami-0cf31d971a3ca20d6"},
+		"InstanceIAMRole" : {"dev" : "arn:aws:iam::321741005818:role/webserver_role"},
+		"Role" : {"dev" : "arn:aws:iam::321741005818:role/webserver_role"}
     } 
   },
   "Parameters" : {  
@@ -26,7 +25,7 @@
       "ConstraintDescription" : "must be the name of an existing EC2 KeyPair."
     }, 
 	"Environment" : {
-      "Description" : "What environment is this.",
+      "Description" : "What environment is this?",
       "Type" : "String",
 	  "Default" : "dev"
     } 
@@ -35,46 +34,34 @@
     "AppServerGroup" : {
       "Type" : "AWS::AutoScaling::AutoScalingGroup",
       "Properties" : {
-        "AvailabilityZones" : { "Ref" : "InstanceAvailabilityZones" },
-        "DesiredCapacity" : { "Ref" : "ASGDesiredCapacity" },
-        "HealthCheckGracePeriod" : { "Ref" : "ASGHealthCheckGracePeriod" },
-        "HealthCheckType" : { "Ref" : "ASGHealthCheckType" },
+        "AvailabilityZones" : { "Fn::FindInMap" : [ "params", {"Ref": "InstanceAvailabilityZones"}, "dev" ] },
+        "DesiredCapacity" : { "Fn::FindInMap" : [ "params", {"Ref": "ASGDesiredCapacity"}, "dev" ] },
+        "HealthCheckType" : { "Fn::FindInMap" : [ "params", {"Ref": "ASGHealthCheckType"}, "dev" ] },
         "LaunchConfigurationName" : { "Ref" : "LaunchConfig" },
-        "MinSize" : { "Ref" : "ASGMinSize" },
-        "MaxSize" : { "Ref" : "ASGMaxSize" },
-        "LoadBalancerNames" : [ { "Ref" : "ServiceELB" } ],
-        "VPCZoneIdentifier" : { "Ref" : "InstanceSubnets" },
+        "MinSize" : { "Fn::FindInMap" : [ "params", {"Ref": "ASGMinSize"}, "dev" ] },
+        "MaxSize" : { "Fn::FindInMap" : [ "params", {"Ref": "ASGMaxSize"}, "dev" ] },
+        "LoadBalancerNames" : { "Fn::FindInMap" : [ "params", {"Ref": "ServiceELB"}, "dev" ] },
+        "VPCZoneIdentifier" : { "Fn::FindInMap" : [ "params", {"Ref": "InstanceSubnets"}, "dev" ] },
         "Tags" : [ { "Key" : "Role", "Value" : { "Ref" : "Role" }, "PropagateAtLaunch" : "true"} ,
                    { "Key" : "CreatedBy", "Value" : "CloudFormation", "PropagateAtLaunch" : "true" },
                    { "Key" : "Name", "Value" : { "Fn::Join" : [ "", [ { "Ref" : "Role" }, "-", { "Ref" : "AWS::Region" }]]}, "PropagateAtLaunch" : "true" }
-                  ],
+        ],
         "NotificationConfiguration" : { "TopicARN" : "arn:aws:sns:us-east-1:725021207524:CloudformationNotifications",
                                         "NotificationTypes" : [ "autoscaling:EC2_INSTANCE_LAUNCH",
                                                                 "autoscaling:EC2_INSTANCE_LAUNCH_ERROR",
                                                                 "autoscaling:EC2_INSTANCE_TERMINATE",
                                                                 "autoscaling:EC2_INSTANCE_TERMINATE_ERROR" ]
-                                      }
+        }
       }
     },
     "LaunchConfig": {
       "Type": "AWS::AutoScaling::LaunchConfiguration",
       "Properties": {
         "KeyName": { "Ref": "KeyName" },
-        "ImageId": { "Ref" : "InstanceAMI" },
-        "IamInstanceProfile": { "Ref" : "InstanceIAMRole" },
+        "ImageId": { "Fn::FindInMap" : [ "params", {"Ref": "InstanceAMI"}, "dev" ] },
+        "IamInstanceProfile": { "Fn::FindInMap" : [ "params", {"Ref": "InstanceIAMRole"}, "dev" ] },
         "InstanceType": { "Fn::FindInMap" : [ "params", {"Ref": "InstanceType"}, "dev" ] },
-        "SecurityGroups": { "Fn::FindInMap" : [ "params", {"Ref": "InstanceSecurityGroup"}, "firewall" ] },
-		"ServiceELB" : { "Fn::FindInMap" : [ "params", {"Ref": "ServiceELB"}, "lb" ] },
-		"InstanceAvailabilityZones" : { "Fn::FindInMap" : [ "params", {"Ref": "InstanceAvailabilityZones"}, "zones" ] },
-		"ASGDesiredCapacity" :{ "Fn::FindInMap" : [ "params", {"Ref": "ASGDesiredCapacity"}, "cap" ] },
-		"ASGHealthCheckGracePeriod" :{ "Fn::FindInMap" : [ "params", {"Ref": "ASGHealthCheckGracePeriod"}, "hcgraceperiod" ] },
-		"ASGHealthCheckType": { "Fn::FindInMap" : [ "params", {"Ref": "ASGHealthCheckType"}, "hctype" ] },
-		"ASGMinSize" : { "Fn::FindInMap" : [ "params", {"Ref": "ASGMinSize"}, "minsize" ] },
-		"ASGMaxSize" : { "Fn::FindInMap" : [ "params", {"Ref": "ASGMaxSize"}, "maxsize" ] },
-		"InstanceSubnets" : { "Fn::FindInMap" : [ "params", {"Ref": "InstanceSubnets"}, "subnets" ] },
-		"InstanceAMI" : { "Fn::FindInMap" : [ "params", {"Ref": "InstanceAMI"}, "ami" ] },
-		"InstanceIAMRole" : { "Fn::FindInMap" : [ "params", {"Ref": "InstanceIAMRole"}, "iam" ] },
-		"Role" : { "Fn::FindInMap" : [ "params", {"Ref": "Role"}, "rl" ] },		
+        "SecurityGroups": { "Fn::FindInMap" : [ "params", {"Ref": "InstanceSecurityGroup"}, "dev" ] },
 		"UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
              "#!/bin/bash -xe\n",
              "ROLE=", { "Ref" : "Role" }, "\n",
