@@ -64,8 +64,10 @@
         "SecurityGroups": { "Fn::FindInMap" : [ "params", "InstanceSecurityGroup", "dev" ] },
 		"UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
              "#!/bin/bash -xe\n",
-             "#yum update -y \n",
-             "#aws s3 cp s3://bootstrap/bootstrap.tar.gz /tmp/bootstrap.tar.gz\n"
+			 "yum update -y\n",
+             "aws s3 cp s3://liserverbucket/scripts/setup.sh .\n",
+             "chmod u+x setup.sh\n",
+			 "./setup.sh"
         ]]}}
       }
     },
