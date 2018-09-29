@@ -4,8 +4,8 @@
   "Mappings" : {
     "params" : { 
 		"InstanceType" : {"dev" : "t2.micro"},
-		"InstanceSecurityGroup" : {"dev" : "sg-00c28de3f5687a790"},
-		"ServiceELB" : {"dev" : "Web-Server-LB"},
+		"InstanceSecurityGroup" : {"dev" : ["sg-00c28de3f5687a790"]},
+		"ServiceELB" : {"dev" : ["arn:aws:elasticloadbalancing:us-east-2:321741005818:targetgroup/web-server-1/ec3979a797b1298d"]},
 		"InstanceAvailabilityZones" : {"dev" : ["us-east-2a", "us-east-2b", "us-east-2c"]},
 		"ASGDesiredCapacity" : {"dev" : "1"},
 		"ASGHealthCheckGracePeriod" : {"dev" : "600"},
@@ -14,8 +14,9 @@
 		"ASGMaxSize" : {"dev" : "1"},
 		"InstanceSubnets" : {"dev" : ["subnet-fc133794", "subnet-674edc1d", "subnet-33a5607f"]},
 		"InstanceAMI" : {"dev" : "ami-0cf31d971a3ca20d6"},
-		"InstanceIAMRole" : {"dev" : "arn:aws:iam::321741005818:role/webserver_role"},
-		"Role" : {"dev" : "arn:aws:iam::321741005818:role/webserver_role"}
+		"InstanceIAMRole" : {"dev" : "arn:aws:iam::321741005818:instance-profile/ServiceAcct"},
+		"EC2Name" : {"dev" : "Liserver"},
+		"EC2Description" : {"dev" : "This is Li Server"}
     } 
   },
   "Parameters" : {  
@@ -34,19 +35,18 @@
     "AppServerGroup" : {
       "Type" : "AWS::AutoScaling::AutoScalingGroup",
       "Properties" : {
-        "AvailabilityZones" : { "Fn::FindInMap" : [ "params", {"Ref": "InstanceAvailabilityZones"}, "dev" ] },
-        "DesiredCapacity" : { "Fn::FindInMap" : [ "params", {"Ref": "ASGDesiredCapacity"}, "dev" ] },
-        "HealthCheckType" : { "Fn::FindInMap" : [ "params", {"Ref": "ASGHealthCheckType"}, "dev" ] },
+        "AvailabilityZones" : { "Fn::FindInMap" : [ "params", "InstanceAvailabilityZones", "dev" ] },
+        "DesiredCapacity" : { "Fn::FindInMap" : [ "params", "ASGDesiredCapacity", "dev" ] },
+        "HealthCheckType" : { "Fn::FindInMap" : [ "params", "ASGHealthCheckType", "dev" ] },
         "LaunchConfigurationName" : { "Ref" : "LaunchConfig" },
-        "MinSize" : { "Fn::FindInMap" : [ "params", {"Ref": "ASGMinSize"}, "dev" ] },
-        "MaxSize" : { "Fn::FindInMap" : [ "params", {"Ref": "ASGMaxSize"}, "dev" ] },
-        "LoadBalancerNames" : { "Fn::FindInMap" : [ "params", {"Ref": "ServiceELB"}, "dev" ] },
-        "VPCZoneIdentifier" : { "Fn::FindInMap" : [ "params", {"Ref": "InstanceSubnets"}, "dev" ] },
-        "Tags" : [ { "Key" : "Role", "Value" : { "Ref" : "Role" }, "PropagateAtLaunch" : "true"} ,
-                   { "Key" : "CreatedBy", "Value" : "CloudFormation", "PropagateAtLaunch" : "true" },
-                   { "Key" : "Name", "Value" : { "Fn::Join" : [ "", [ { "Ref" : "Role" }, "-", { "Ref" : "AWS::Region" }]]}, "PropagateAtLaunch" : "true" }
+        "MinSize" : "1",
+        "MaxSize" : { "Fn::FindInMap" : [ "params", "ASGMaxSize", "dev" ] },
+        
+        "VPCZoneIdentifier" : { "Fn::FindInMap" : [ "params", "InstanceSubnets", "dev" ] },
+        "Tags" : [ { "Key" : "Description", "Value" : { "Fn::FindInMap" : [ "params", "EC2Description", "dev" ] }, "PropagateAtLaunch" : "true"} ,
+                   { "Key" : "Name", "Value" : { "Fn::FindInMap" : [ "params", "EC2Name", "dev" ] }, "PropagateAtLaunch" : "true" }
         ],
-        "NotificationConfiguration" : { "TopicARN" : "arn:aws:sns:us-east-1:725021207524:CloudformationNotifications",
+        "NotificationConfiguration" : { "TopicARN" : "arn:aws:sns:us-east-2:321741005818:Li-Notification",
                                         "NotificationTypes" : [ "autoscaling:EC2_INSTANCE_LAUNCH",
                                                                 "autoscaling:EC2_INSTANCE_LAUNCH_ERROR",
                                                                 "autoscaling:EC2_INSTANCE_TERMINATE",
@@ -58,14 +58,13 @@
       "Type": "AWS::AutoScaling::LaunchConfiguration",
       "Properties": {
         "KeyName": { "Ref": "KeyName" },
-        "ImageId": { "Fn::FindInMap" : [ "params", {"Ref": "InstanceAMI"}, "dev" ] },
-        "IamInstanceProfile": { "Fn::FindInMap" : [ "params", {"Ref": "InstanceIAMRole"}, "dev" ] },
-        "InstanceType": { "Fn::FindInMap" : [ "params", {"Ref": "InstanceType"}, "dev" ] },
-        "SecurityGroups": { "Fn::FindInMap" : [ "params", {"Ref": "InstanceSecurityGroup"}, "dev" ] },
+        "ImageId": { "Fn::FindInMap" : [ "params", "InstanceAMI", "dev" ] },
+        "IamInstanceProfile": { "Fn::FindInMap" : [ "params", "InstanceIAMRole", "dev" ] },
+        "InstanceType": { "Fn::FindInMap" : [ "params", "InstanceType", "dev" ] },
+        "SecurityGroups": { "Fn::FindInMap" : [ "params", "InstanceSecurityGroup", "dev" ] },
 		"UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
              "#!/bin/bash -xe\n",
-             "ROLE=", { "Ref" : "Role" }, "\n",
-             "yum update -y \n",
+             "#yum update -y \n",
              "#aws s3 cp s3://bootstrap/bootstrap.tar.gz /tmp/bootstrap.tar.gz\n"
         ]]}}
       }
