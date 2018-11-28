@@ -1,0 +1,150 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "Creates an webserver autoscaling group",
+  "Mappings" : {
+    "params" : { 
+		"InstanceType" : {"dev" : "t2.micro"},
+		"InstanceSecurityGroup" : {"dev" : ["sg-00c28de3f5687a790"]},
+		"ServiceELB" : {"dev" : ["arn:aws:elasticloadbalancing:us-east-2:321741005818:targetgroup/web-server-1/ec3979a797b1298d"]},
+		"InstanceAvailabilityZones" : {"dev" : ["us-east-2a", "us-east-2b", "us-east-2c"]},
+		"ASGDesiredCapacity" : {"dev" : "1"},
+		"ASGHealthCheckGracePeriod" : {"dev" : "600"},
+		"ASGHealthCheckType": {"dev" : "EC2"},
+		"ASGMinSize" : {"dev" : "1"},
+		"ASGMaxSize" : {"dev" : "1"},
+		"InstanceSubnets" : {"dev" : ["subnet-fc133794", "subnet-674edc1d", "subnet-33a5607f"]},
+		"InstanceAMI" : {"dev" : "ami-0cf31d971a3ca20d6"},
+		"InstanceIAMRole" : {"dev" : "arn:aws:iam::321741005818:instance-profile/ServiceAcct"},
+		"EC2Name" : {"dev" : "Liserver"},
+		"EC2Description" : {"dev" : "This is Li Server"}
+    } 
+  },
+  "Parameters" : {  
+    "KeyName" : {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+      "Type" : "AWS::EC2::KeyPair::KeyName",
+      "ConstraintDescription" : "must be the name of an existing EC2 KeyPair."
+    }, 
+	"Environment" : {
+      "Description" : "What environment is this?",
+      "Type" : "String",
+	  "Default" : "dev"
+    } 
+  },
+  "Resources" : {
+    "AppServerGroup" : {
+      "Type" : "AWS::AutoScaling::AutoScalingGroup",
+      "Properties" : {
+        "AvailabilityZones" : { "Fn::FindInMap" : [ "params", "InstanceAvailabilityZones", "dev" ] },
+        "DesiredCapacity" : { "Fn::FindInMap" : [ "params", "ASGDesiredCapacity", "dev" ] },
+        "HealthCheckType" : { "Fn::FindInMap" : [ "params", "ASGHealthCheckType", "dev" ] },
+        "LaunchConfigurationName" : { "Ref" : "LaunchConfig" },
+        "MinSize" : "1",
+        "MaxSize" : { "Fn::FindInMap" : [ "params", "ASGMaxSize", "dev" ] },
+        
+        "VPCZoneIdentifier" : { "Fn::FindInMap" : [ "params", "InstanceSubnets", "dev" ] },
+        "Tags" : [ { "Key" : "Description", "Value" : { "Fn::FindInMap" : [ "params", "EC2Description", "dev" ] }, "PropagateAtLaunch" : "true"} ,
+                   { "Key" : "Name", "Value" : { "Fn::FindInMap" : [ "params", "EC2Name", "dev" ] }, "PropagateAtLaunch" : "true" }
+        ],
+        "NotificationConfiguration" : { "TopicARN" : "arn:aws:sns:us-east-2:321741005818:Li-Notification",
+                                        "NotificationTypes" : [ "autoscaling:EC2_INSTANCE_LAUNCH",
+                                                                "autoscaling:EC2_INSTANCE_LAUNCH_ERROR",
+                                                                "autoscaling:EC2_INSTANCE_TERMINATE",
+                                                                "autoscaling:EC2_INSTANCE_TERMINATE_ERROR" ]
+        }
+      }
+    },
+    "LaunchConfig": {
+      "Type": "AWS::AutoScaling::LaunchConfiguration",
+      "Properties": {
+        "KeyName": { "Ref": "KeyName" },
+        "ImageId": { "Fn::FindInMap" : [ "params", "InstanceAMI", "dev" ] },
+        "IamInstanceProfile": { "Fn::FindInMap" : [ "params", "InstanceIAMRole", "dev" ] },
+        "InstanceType": { "Fn::FindInMap" : [ "params", "InstanceType", "dev" ] },
+        "SecurityGroups": { "Fn::FindInMap" : [ "params", "InstanceSecurityGroup", "dev" ] },
+		"UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
+             "#!/bin/bash -xe\n",
+			 "yum update -y\n",
+             "aws s3 cp s3://liserverbucket/scripts/setup_2.sh .\n",
+             "chmod u+x setup_2.sh\n",
+			 "./setup_2.sh"
+        ]]}}
+      }
+    },
+
+    "AppServerScaleUpPolicy" : {
+      "Type" : "AWS::AutoScaling::ScalingPolicy",
+      "Properties" : {
+        "AdjustmentType" : "ChangeInCapacity",
+        "AutoScalingGroupName" : { "Ref" : "AppServerGroup" },
+        "Cooldown" : "60",
+        "ScalingAdjustment" : "1"
+      }
+    },
+    "AppServerScaleDownPolicy" : {
+      "Type" : "AWS::AutoScaling::ScalingPolicy",
+      "Properties" : {
+        "AdjustmentType" : "ChangeInCapacity",
+        "AutoScalingGroupName" : { "Ref" : "AppServerGroup" },
+        "Cooldown" : "60",
+        "ScalingAdjustment" : "-1"
+      }
+    },
+
+    "CPUAlarmHigh": {
+     "Type": "AWS::CloudWatch::Alarm",
+     "Properties": {
+        "AlarmDescription": "Scale-up if CPU > 90% for 10 minutes",
+        "MetricName": "CPUUtilization",
+        "Namespace": "AWS/EC2",
+        "Statistic": "Average",
+        "Period": "300",
+        "EvaluationPeriods": "2",
+        "Threshold": "90",
+        "AlarmActions": [ { "Ref": "AppServerScaleUpPolicy" } ],
+        "Dimensions": [
+          {
+            "Name": "AutoScalingGroupName",
+            "Value": { "Ref": "AppServerGroup" }
+          }
+        ],
+        "ComparisonOperator": "GreaterThanThreshold"
+      }
+    },
+    "CPUAlarmLow": {
+     "Type": "AWS::CloudWatch::Alarm",
+     "Properties": {
+        "AlarmDescription": "Scale-down if CPU < 50% for 10 minutes",
+        "MetricName": "CPUUtilization",
+        "Namespace": "AWS/EC2",
+        "Statistic": "Average",
+        "Period": "300",
+        "EvaluationPeriods": "2",
+        "Threshold": "50",
+        "AlarmActions": [ { "Ref": "AppServerScaleDownPolicy" } ],
+        "Dimensions": [
+          {
+            "Name": "AutoScalingGroupName",
+            "Value": { "Ref": "AppServerGroup" }
+          }
+        ],
+        "ComparisonOperator": "LessThanThreshold"
+      }
+    }
+  },
+
+  "Outputs" : {
+    "AutoScalingGroupName" : {
+      "Value" : { "Ref": "AppServerGroup" },
+      "Description" : "AutoScaling Group Name."
+    },
+    "ScaleUpAlarm" : {
+      "Value" : { "Ref" : "CPUAlarmHigh" },
+      "Description" : "Scale Up Alarm"
+    },
+    "ScaleDownAlarm" : {
+      "Value" : { "Ref" : "CPUAlarmLow" },
+      "Description" : "Scale Down Alarm"
+    }
+  }
+}
